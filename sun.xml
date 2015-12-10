@@ -1,0 +1,30 @@
+<space>
+
+
+	<object name="Sun"
+			luminosity=""
+			radius=""
+			rotationPeriod=""
+			orbitalPeriod="">
+		
+		<texture name="" />
+
+		<satellites>
+
+			<object name=""
+					luminosity=""
+					radius=""
+					rotationPeriod=""
+					orbitalPeriod="">
+				<!--<satellites>
+					<object name=""
+							radius=""
+							rotationPeriod=""
+							orbitalPeriod=""></object>
+				</satellites>-->
+			</object>
+
+		</satellites>
+	</object>
+
+</space>
