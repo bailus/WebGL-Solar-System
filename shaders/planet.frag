@@ -19,7 +19,9 @@ void main () {
 	vec4 L = normalize(lightEyePosition[0] - eyePosition);
 	vec4 E = normalize(eyePosition);
 	float diffuseIllumination = 0.8 * max(0.0, dot(N, L));
-	float haloIllumination = clamp(0.7 * pow(max(0.0, dot(E, normalize(L - 2.0 * max(0.0, dot(-N, L)) * -N))), 3.0)) * 0.2;
+	float haloIllumination = clamp(
+					0.7 * pow( max(0.0, dot(E, normalize(L - 2.0 * max(0.0, dot(-N, L)) * -N))) , 3.0)
+				, 0.0, 1.0);
 	float specularIllumination = 0.01 * pow(dot(E, reflect(N, L)), 5.0);
 	float ambientIllumination = 0.01;
 

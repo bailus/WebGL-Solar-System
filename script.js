@@ -4,7 +4,7 @@
 	var sin = Math.sin, cos = Math.cos, π = Math.PI, nullFunc = function () {};
 
 	var consoleElem = document.getElementById("console");
-	/*var console = {
+	var console = {
 		info:  function (o) {
 			var text = document.createTextNode(o);
 			var line = document.createElement("div");
@@ -14,7 +14,7 @@
 		},
 		error: console ? console.error || nullFunc : nullFunc,
 		log:   console ? console.log || nullFunc : nullFunc
-	};*/
+	};
 
 	// map({ k₀: v₀, k₁: v₁, ..., kᵢ: vᵢ }, f)  ->  { k₀: f(v₀, k₀), k₁: f(v₁, k₁), ..., kᵢ: f(vᵢ, kᵢ) }
 	var map = function (object, f) { 
@@ -432,7 +432,6 @@
 				}
 			}, shaderSources);
 
-
 		var shapes = {
 			planet: buildSphere(gl, programs.planet, 48, 96),
 			star: buildSphere(gl, programs.star, 48, 96),
@@ -571,7 +570,6 @@
 		}
 
 		var selected = findPlanet(sun, 'Sun/Earth');
-		console.log(selected);
 		var draw = function (prev, now, fps) {
 
 			var updatePlanets = function (planet, parentTransform) {
