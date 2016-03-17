@@ -7,6 +7,9 @@ body {
 	font-size: 14px;
 }
 
+a, a:hover, a:visited, a:active {
+	color:inherit;
+}
 #canvas {
 	position:absolute;
 	left: 0; top: 0;

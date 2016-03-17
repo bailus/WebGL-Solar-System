@@ -105,10 +105,22 @@
 		};
 	};
 
-	var getHTML = function (planet) {
+	var getPath = function (planet, target) {
+		if (planet === target) return planet.name;
+
+		var path;
+
+		if (planet.satellites && planet.satellites.some(function (satellite) {
+				path = getPath(satellite, target);
+				return path;
+			}))		
+			return planet.name + '/' + path;
+	};
+
+	var getHTML = function (sun, planet) {
 		var html = "";
 		html += "<div class=planet>";
-		html += "<div class=name>"+(planet.name || "")+"</div>";
+		html += '<div class=name><a href="#'+getPath(sun, planet)+'">'+(planet.name || "")+"</a></div>";
 		html += "<dl>";
 		html += ["luminosity", "radius", "rotationPeriod", "orbitalPeriod"].map(function (key) {
 			if (planet[key] === undefined) return "";
@@ -118,7 +130,7 @@
 
 		if (planet.satellites && planet.satellites.length > 0) {
 			html += "<div class=satellites>";
-			html += Object.keys(planet.satellites).map(function (key) { return getHTML(planet.satellites[key]); }).join("");
+			html += Object.keys(planet.satellites).map(function (key) { return getHTML(sun, planet.satellites[key]); }).join("");
 			html += "</div>";
 		}
 
@@ -548,7 +560,7 @@
 			],
 		};
 
-		document.getElementById("console").innerHTML = getHTML(sun);
+		document.getElementById("console").innerHTML = getHTML(sun, sun);
 
 		var findPlanet = function (planet, address) {
 			var f = function (planet, names) {
@@ -569,7 +581,13 @@
 			return f(planet, address.split('/'));
 		}
 
-		var selected = findPlanet(sun, 'Sun/Earth');
+		var selected;
+		window.onhashchange = function () {
+			var hash = window.location.hash.slice(1);
+			selected = findPlanet(sun, hash) || findPlanet(sun, 'Sun/Earth');
+		}
+		window.onhashchange();
+
 		var draw = function (prev, now, fps) {
 
 			var updatePlanets = function (planet, parentTransform) {
