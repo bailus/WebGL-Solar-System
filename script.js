@@ -5,13 +5,13 @@
 
 	var sin = Math.sin, cos = Math.cos, π = Math.PI;
 
-	Math.cbrt = Math.cbrt || function(x) {
+	Math.cbrt = Math.cbrt || function(x) {  //from https://developer.mozilla.org/ca/docs/Web/JavaScript/Referencia/Objectes_globals/Math/cbrt
 		var y = Math.pow(Math.abs(x), 1/3);
 		return x < 0 ? -y : y;
 	};
 
 	var consoleElem = document.getElementById("console");
-	var console = {
+	var console2 = {
 		info:  function (o) {
 			var text = document.createTextNode(o);
 			var line = document.createElement("div");
@@ -424,8 +424,70 @@
 		}
 	};
 
+
+	function addMouseDragListener(elem, callback) {
+
+		function scale(point) {
+			const rect = elem.getBoundingClientRect()
+			const elemSize = [ rect.right - rect.left, rect.bottom - rect.top ]
+			const halfElemSize = [ elemSize[0]/2, elemSize[1]/2 ]
+			const elemCenter = [ rect.left + halfElemSize[0], rect.top + halfElemSize[1] ]
+			return {
+				x: (point.x - elemCenter[0]) / halfElemSize[0],
+				y: -(point.y - elemCenter[1]) / halfElemSize[0]
+			}			
+		}
+
+		let point = undefined
+
+		elem.addEventListener('mousedown', evt => {
+			point = scale({ x: evt.clientX, y: evt.clientY })
+		})
+		elem.addEventListener('mousemove', evt => {
+			if (point === undefined) return
+
+			const p = scale({ x: evt.clientX, y: evt.clientY })
+			callback(p, point)
+
+			point = p
+		})
+		elem.addEventListener('mouseup', evt => {
+			if (point === undefined) return
+
+			const p = scale({ x: evt.clientX, y: evt.clientY })
+			callback(p, point)
+
+			point = undefined
+		})
+
+	}
+
+
+	function arcballVector(point) {
+		const mSquared = ( (point.x*point.x) + (point.y*point.y) )
+console.log(mSquared)
+		if (mSquared <= 1) { //on arcball
+			return [ point.x, point.y, Math.sqrt(1 - mSquared) ]
+		}
+		else { //nearest point
+			const s = Math.sqrt(mSquared)
+			return [ point.x / s, point.y / s, 0 ]
+		}
+	}
+
+
+
+
 	var main = function (shaderSources, textures) { // main()
-		var gl = initGL(document.getElementById("canvas"));
+		var canvas = document.getElementById("canvas");
+		var gl = initGL(canvas);
+
+		let cameraRotation = quat.create()
+		addMouseDragListener(canvas, (point, lastPoint) => {
+			const u = arcballVector(point)
+			const v = arcballVector(lastPoint)
+			quat.mul(cameraRotation, quat.rotationTo(quat.create(), v, u), cameraRotation)
+		})
 
 		textures = loadTextures(gl, textures);
 
@@ -451,6 +513,11 @@
 				}
 			}, shaderSources);
 
+		var uniforms = {
+			View: { data: mat4.create(), type: gl.uniformMatrix4fv },
+			Projection: { data: mat4.create(), type: gl.uniformMatrix4fv }
+		};
+
 		var shapes = {
 			planet: buildSphere(gl, programs.planet, 48, 96),
 			star: buildSphere(gl, programs.star, 48, 96),
@@ -466,11 +533,6 @@
 
 		var lights = {
 
-		};
-
-		var uniforms = {
-			View: { data: mat4.create(), type: gl.uniformMatrix4fv },
-			Projection: { data: mat4.create(), type: gl.uniformMatrix4fv }
 		};
 
 		var scaleDistance = function (d) { return Math.cbrt(d); };
@@ -646,12 +708,22 @@
 				if (planet === selected) {
 					var planetPosition = vec3.transformMat4(vec3.create(), [0,0,0], planet.transform.position);
 					var r = systemRadius(planet);
-					mat4.lookAt(
+					const rotation = mat4.fromQuat(mat4.create(), cameraRotation)
+					const translation = mat4.fromTranslation(mat4.create(), vec3.sub(vec3.create(), vec3.create(), planetPosition))
+					const offset = mat4.fromTranslation(mat4.create(), [0,0,-scaleDistance((r*10)^(1/2))])
+					
+					const eyePos = mat4.create()
+					mat4.mul(eyePos, eyePos, offset)
+					mat4.mul(eyePos, eyePos, rotation)
+					mat4.mul(eyePos, eyePos, translation)
+					
+					/*mat4.lookAt(
 							uniforms.View.data, // out
-							vec3.add(vec3.create(), planetPosition, [0,scaleDistance(r/8),scaleDistance((r*10)^(1/2))]),// eye
+							vec3.transformMat3(vec3.create(), vec3.create(), eyePos), // eye
 							planetPosition, // center
 							[0,1,-1] // up
-							);
+							)*/
+					uniforms.View.data = eyePos
 					mat4.perspective(uniforms.Projection.data, π/2, 1024/768, scaleDistance(planet.radius), scaleDistance(1e11)); // out, fovy, aspect, near, far
 					return true;
 				}
@@ -704,7 +776,8 @@
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 			//draw skybox
-			drawShape(gl, shapes.skybox, { View: {  } });
+			//drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), cameraRotation), type: gl.uniformMatrix4fv } });  
+			drawShape(gl, shapes.skybox, { View: uniforms.View.data });  
 
 			gl.clear(gl.DEPTH_BUFFER_BIT);
 			updatePlanets(sun);
