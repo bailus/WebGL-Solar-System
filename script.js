@@ -124,22 +124,43 @@
 			return planet.name + '/' + path;
 	};
 
+	function getParent(planet, target, p) {
+		if (planet === target) return p;
+
+		var path;
+
+		if (planet.satellites && planet.satellites.some(function (satellite) {
+				p = getParent(satellite, target, planet);
+				return p;
+			}))
+
+		return p;
+	}
+
 	var getHTML = function (sun, planet) {
+		const parent = getParent(sun, planet)
 		var html = "";
 		html += "<div class=planet>";
+		if (parent) html += '<div class=parent><a href="#'+getPath(sun, parent)+'">&lt;'+(parent.name || "")+'</a></div>';
 		html += '<div class=name><a href="#'+getPath(sun, planet)+'">'+(planet.name || "")+"</a></div>";
 		html += "<dl>";
 		html += ["luminosity", "radius", "rotationPeriod", "orbitalPeriod"].map(function (key) {
 			if (planet[key] === undefined) return "";
-			return "<dt>"+key+"</dt><dd>"+planet[key]+"</dd>";
+			return "<dt>"+key+"</dt><dd>"+planet[key].toPrecision(4)+"</dd>";
 		}).join("");
-		html += "</dl>";
 
 		if (planet.satellites && planet.satellites.length > 0) {
-			html += "<div class=satellites>";
-			html += Object.keys(planet.satellites).map(function (key) { return getHTML(sun, planet.satellites[key]); }).join("");
-			html += "</div>";
+			html += "<dt>Satellites</dt><dd>";
+			html += "<ol class=satellites>";
+			//html += Object.keys(planet.satellites).map(function (key) { return getHTML(sun, planet.satellites[key]); }).join("");
+			html += Object.keys(planet.satellites).map((key) => {
+				return '<li><a href="#' + getPath(sun, planet.satellites[key]) + '">' + planet.satellites[key].name + '</a></li>'
+			}).join("");
+			
+			html += "</ol></dd>";
 		}
+
+		html += "</dl>";
 
 		html += "</div>";
 		return html;
@@ -463,9 +484,16 @@
 	}
 
 
+	function addMouseScrollListener(elem, callback) {
+		elem.addEventListener('mousewheel', evt => {
+			callback(evt.wheelDelta)
+			return false
+		}, false)
+	}
+
+
 	function arcballVector(point) {
 		const mSquared = ( (point.x*point.x) + (point.y*point.y) )
-console.log(mSquared)
 		if (mSquared <= 1) { //on arcball
 			return [ point.x, point.y, Math.sqrt(1 - mSquared) ]
 		}
@@ -487,6 +515,11 @@ console.log(mSquared)
 			const u = arcballVector(point)
 			const v = arcballVector(lastPoint)
 			quat.mul(cameraRotation, quat.rotationTo(quat.create(), v, u), cameraRotation)
+		})
+		let cameraZoom = 1
+		addMouseScrollListener(canvas, (wheelDelta) => {
+			const zoomFactor = (-wheelDelta / 300)
+			cameraZoom = Math.max(1, Math.min(10, cameraZoom + zoomFactor))
 		})
 
 		textures = loadTextures(gl, textures);
@@ -527,7 +560,6 @@ console.log(mSquared)
 		shapes.skybox.textures = { textureSampler: textures.stars };
 		shapes.skybox.uniforms = {
 			Model: { data: mat4.create(), type: gl.uniformMatrix4fv },
-			View: { data: mat4.lookAt(mat4.create(), [ 0, 0, 0 ], [ 0, 0, -1 ], [ 0, 1, 0 ]), type: gl.uniformMatrix4fv },
 			Projection: { data: mat4.perspective(mat4.create(), π/2, 1024/768, 0.2, 2), type: gl.uniformMatrix4fv }
 		};
 
@@ -547,20 +579,23 @@ console.log(mSquared)
 			rotationPeriod: 24.47*24,
 			orbitalPeriod: 0,
 			texture: textures.sun,
+			surface: "textures/sun.jpg",
 			satellites: [
 				{	name: "Mercury",
 					radius: 4878/2,
 					orbitalDistance: 579e5,
 					orbitalPeriod: 0.24*365,
 					rotationPeriod: 58.65,
-					texture: textures.mercury
+					texture: textures.mercury,
+					surface: "textures/mercury.jpg"
 				},
 				{	name: "Venus",
 					radius: 12104/2,
 					orbitalDistance: 1082e5,
 					rotationPeriod: -243,
 					orbitalPeriod: 0.62*365,
-					texture: textures.venus
+					texture: textures.venus,
+					surface: "textures/venus.jpg"
 				},
 				{	name: "Earth",
 					radius: 12756/2,
@@ -568,13 +603,15 @@ console.log(mSquared)
 					orbitalPeriod: 1*365,
 					rotationPeriod: 1,
 					texture: textures.earth,
+					surface: "textures/earth.jpg",
 					satellites: [
 						{	name: "Moon",
 							radius: 1737.10/2,
 							orbitalDistance: 38e4,
 							orbitalPeriod: 27.3,
 							rotationPeriod: 0,
-							texture: textures.moon
+							texture: textures.moon,
+							surface: "textures/moon.jpg"
 						}
 					]
 				},
@@ -584,12 +621,14 @@ console.log(mSquared)
 					rotationPeriod: 1.03,
 					orbitalPeriod: 1.88*365,
 					texture: textures.mars,
+					surface: "textures/mars.jpg",
 					satellites: [
 						{	name: "Phobos",
 							radius: 11.2667/2,
 							orbitalDistance: 9400,
 							orbitalPeriod: 7.65,
 							rotationPeriod: 0,
+							surface: "textures/phobos.jpg",
 							texture: textures.phobos
 						}
 					]
@@ -599,7 +638,8 @@ console.log(mSquared)
 					orbitalPeriod: 11.86*365,
 					orbitalDistance: 7783e5,
 					rotationPeriod: 0.41,
-					texture: textures.jupiter
+					texture: textures.jupiter,
+					surface: "textures/jupiter.jpg"
 					//satellites: [ ... ]
 				},
 				{	name: "Saturn",
@@ -607,7 +647,8 @@ console.log(mSquared)
 					orbitalDistance: 1427e6,
 					orbitalPeriod: 29.46*365,
 					rotationPeriod: 0.44,
-					texture: textures.saturn
+					texture: textures.saturn,
+					surface: "textures/saturn.jpg"
 					//satellites: [ ... ]
 				},
 				{	name: "Uranus",
@@ -615,7 +656,8 @@ console.log(mSquared)
 					orbitalDistance: 2871e6,
 					orbitalPeriod: 84.01*365,
 					rotationPeriod: -0.72,
-					texture: textures.uranus
+					texture: textures.uranus,
+					surface: "textures/uranus.jpg"
 					//satellites: [ ... ]
 				},
 				{	name: "Neptune",
@@ -623,13 +665,13 @@ console.log(mSquared)
 					orbitalDistance: 44971e5,
 					orbitalPeriod: 164.8*365,
 					rotationPeriod: 0.72,
-					texture: textures.neptune
+					texture: textures.neptune,
+					surface: "textures/neptune.jpg"
 					//satellites: [ ... ]
 				},
 			],
 		};
 
-		document.getElementById("console").innerHTML = getHTML(sun, sun);
 
 		var findPlanet = function (planet, address) {
 			var f = function (planet, names) {
@@ -654,10 +696,16 @@ console.log(mSquared)
 		window.onhashchange = function () {
 			var hash = window.location.hash.slice(1);
 			selected = findPlanet(sun, hash) || findPlanet(sun, 'Sun/Earth');
+			document.getElementById("console").innerHTML = getHTML(sun, selected || sun);
 		}
 		window.onhashchange();
 
+		document.getElementById("console").innerHTML = getHTML(sun, selected || sun);
+
 		var draw = function (prev, now, fps) {
+
+			const canvasBoundingRect = canvas.getBoundingClientRect()
+			const aspectRatio = canvasBoundingRect.width / canvasBoundingRect.height
 
 			var updatePlanets = function (planet, parentTransform) {
 				parentTransform = parentTransform || { position: mat4.create() };
@@ -707,10 +755,10 @@ console.log(mSquared)
 
 				if (planet === selected) {
 					var planetPosition = vec3.transformMat4(vec3.create(), [0,0,0], planet.transform.position);
-					var r = systemRadius(planet);
+					var r = (systemRadius(planet) * 0.4) + (planet.radius * 0.6);
 					const rotation = mat4.fromQuat(mat4.create(), cameraRotation)
 					const translation = mat4.fromTranslation(mat4.create(), vec3.sub(vec3.create(), vec3.create(), planetPosition))
-					const offset = mat4.fromTranslation(mat4.create(), [0,0,-scaleDistance((r*10)^(1/2))])
+					const offset = mat4.fromTranslation(mat4.create(), [0,0,-scaleDistance((r*10)^(1/2)) * cameraZoom])
 					
 					const eyePos = mat4.create()
 					mat4.mul(eyePos, eyePos, offset)
@@ -724,7 +772,7 @@ console.log(mSquared)
 							[0,1,-1] // up
 							)*/
 					uniforms.View.data = eyePos
-					mat4.perspective(uniforms.Projection.data, π/2, 1024/768, scaleDistance(planet.radius), scaleDistance(1e11)); // out, fovy, aspect, near, far
+					mat4.perspective(uniforms.Projection.data, π/2, aspectRatio, scaleDistance(r*1e-3), scaleDistance(r * 1e8)); // out, fovy, aspect, near, far
 					return true;
 				}
 
@@ -776,14 +824,14 @@ console.log(mSquared)
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 			//draw skybox
-			//drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), cameraRotation), type: gl.uniformMatrix4fv } });  
-			drawShape(gl, shapes.skybox, { View: uniforms.View.data });  
+			drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), cameraRotation), type: gl.uniformMatrix4fv } });  
+			//drawShape(gl, shapes.skybox, { View: uniforms.View.data });  
 
 			gl.clear(gl.DEPTH_BUFFER_BIT);
 			updatePlanets(sun);
 			if (!setUniforms(sun)) {
 				mat4.lookAt(uniforms.View.data, [0,scaleDistance(1e9),scaleDistance(8e9)], [0,-scaleDistance(5e8),0], [0,1e3,-1e3]); // out, eye, scale, up
-				mat4.perspective(uniforms.Projection.data, π/2, 1024/768, scaleDistance(1e8), scaleDistance(1e16)); // out, fovy, aspect, near, far
+				mat4.perspective(uniforms.Projection.data, π/2, aspectRatio, scaleDistance(1e8), scaleDistance(1e32)); // out, fovy, aspect, near, far
 			}
 			setLights(sun);
 			drawPlanet(sun);
