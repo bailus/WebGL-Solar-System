@@ -1,0 +1,34 @@
+precision mediump float;
+
+varying vec4 position;
+varying vec4 normal;
+varying vec2 texture;
+
+varying vec3 eyePosition;
+varying vec3 eyeNormal;
+varying vec3 lightEyePosition[8];
+
+uniform float lightLuminosity[8];
+
+uniform sampler2D textureSampler;
+
+void main () {
+	vec4 textureColor = texture2D(textureSampler, texture);
+
+	vec3 N = normalize(eyeNormal);
+	vec3 L = normalize(lightEyePosition[0]);
+	vec3 E = normalize(eyePosition);
+	float diffuseIllumination = dot(N, L);
+	float haloIllumination = clamp(
+					0.1 * pow( max(0.0, dot(E, normalize(L - 2.0 * max(0.0, dot(-N, L)) * -N))) , 3.0)
+				, 0.0, 1.0);
+	float specularIllumination = 0.1 * pow(dot(E, reflect(N, L)), 5.0);
+	float ambientIllumination = 0.1;
+
+	gl_FragColor = (haloIllumination * vec4(1,1,1,1)) +
+		(textureColor * clamp(
+		 diffuseIllumination + specularIllumination,
+		0.0, 1.0));
+	//gl_FragColor = vec4(vec3(N), 1.0);
+
+}

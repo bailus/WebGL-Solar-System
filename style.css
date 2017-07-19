@@ -19,12 +19,57 @@ a, a:hover, a:visited, a:active {
 
 #statistics {
 	position:absolute;
-	left: 0; top: 0;
+	right:42px; bottom:42px;
 	width:200px; height:30px;
 	margin:20px 20px; padding: 0;
+	text-align: right;
+}
+
+#controls {
+	position:absolute;
+	left: 42px; bottom: 42px;
+	width: 300px; height:auto;
+	margin:0; padding: 0;
+	overflow: auto;
+	display:flex;
+	flex-direction:column;
+}
+#controls input, #controls label, #controls select {
+	width: 90%;
+	display: block;
+	margin: 0 auto;
+}
+#controls > button {
+	width: 50%;
+	border: none;
+	padding: 0;
+	margin: 0 auto;
+}
+.control {
+	display:flex;
+	flex-direction:column;
+	border: 1px solid rgb(48, 48, 48);
+	background-color:rgba(0,0,0,0.75);
+	padding: 10px 0;
+}
+#controls .control > * + * {
+	margin-top:10px;
+}
+
+#controls .control + .control {
+	margin-top:10px;
 }
 
 #console {
+	position:absolute;
+	left: 42px; top: 0;
+	width: auto; height:4.9em;
+	margin:0; padding: 0;
+	overflow-y: hidden;
+	overflow-x: visible;
+}
+
+#info {
 	position:absolute;
 	right: 42px; top: 42px;
 	width: 300px; height:auto;

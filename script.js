@@ -11,7 +11,8 @@
 	};
 
 	var consoleElem = document.getElementById("console");
-	var console2 = {
+	const realConsole = console
+	console = {
 		info:  function (o) {
 			var text = document.createTextNode(o);
 			var line = document.createElement("div");
@@ -19,8 +20,8 @@
 			consoleElem.appendChild(line);
 			line.scrollIntoView();
 		},
-		error: console ? console.error || nullFunc : nullFunc,
-		log:   console ? console.log || nullFunc : nullFunc
+		error: realConsole.error,
+		log: realConsole.log
 	};
 
 	// map({ k₀: v₀, k₁: v₁, ..., kᵢ: vᵢ }, f)  ->  { k₀: f(v₀, k₀), k₁: f(v₁, k₁), ..., kᵢ: f(vᵢ, kᵢ) }
@@ -75,15 +76,18 @@
 	var animate = function (minTimeDelta, numSamples, func, fpsFunc) {
 		var stop = true;
 		var samples = 0, sampleTimeDelta = 0, fps = 0;
+		var speed = 0;
+		var time = 0;
 		var requestFrame = function (prev, now) {
 			if (now-prev >= minTimeDelta) {
+				time += (now-prev)*speed
 				sampleTimeDelta += now-prev;
 				if (++samples >= numSamples) {
 					fps = numSamples*1e3/sampleTimeDelta;
 					samples = 0; sampleTimeDelta = 0;
 					if (fpsFunc) fpsFunc(fps);
 				}
-				func(prev, now, fps);
+				func(prev, time, fps);
 				prev = now;
 			}
 			if (stop) {
@@ -100,13 +104,21 @@
 			},
 			stop: function () {
 				stop = true;
+				speed = 0;
 			},
 			start: function () {
 				window.requestAnimationFrame(function (time) {
 					stop = false;
+					speed = 1;
 					requestFrame(time, time);
 				});
 				return this;
+			},
+			setSpeed: function (s) {
+				speed = s;
+			},
+			getSpeed: function () {
+				return speed;
 			}
 
 		};
@@ -254,6 +266,8 @@
 				gl.uniformMatrix4fv(program.uniforms[key], false, data[key].data);
 			else if(data[key].type == gl.uniform1i)
 				gl.uniform1i(program.uniforms[key], data[key].data);
+			else if(data[key].type == gl.uniform4fv)
+				gl.uniform4fv(program.uniforms[key], data[key].data);
 		});
 	};
 
@@ -339,7 +353,7 @@
 
 	    //create index buffer
 	    for (var lat=0; lat < latitudeBands; lat++) {
-	        for (var long=0; long < longitudeBands; long++)
+	        for (var long=0; long <= longitudeBands; long++)
 	            index.push(
 	            	(lat + 1) * (longitudeBands) + long,
 	            	lat * (longitudeBands) + long
@@ -522,6 +536,14 @@
 			cameraZoom = Math.max(1, Math.min(10, cameraZoom + zoomFactor))
 		})
 
+		let viewDirection = "in"
+		const $viewDirection = document.getElementById("viewDirection")
+		if ($viewDirection) $viewDirection.addEventListener("change", evt => { viewDirection = $viewDirection.value })
+
+		let rotationLock = "galaxy"
+		const $rotationLock = document.getElementById("rotationLock")
+		if ($rotationLock) $rotationLock.addEventListener("change", evt => { rotationLock = $rotationLock.value })
+
 		textures = loadTextures(gl, textures);
 
 		var programs = createPrograms(gl,
@@ -531,6 +553,12 @@
 					fragment: "planetFrag",
 					attributes: [ "vertexPosition", "vertexNormal", "vertexTexture" ],
 					uniforms: [ "Model", "View", "Projection", "textureSampler", "lightPosition", "lightLuminosity" ]
+				},
+				skybox: { 
+					vertex: "skyboxVert", 
+					fragment: "skyboxFrag",
+					attributes: [ "vertexPosition", "vertexNormal", "vertexTexture" ],
+					uniforms: [ "Model", "View", "Projection", "textureSampler" ]
 				},
 				star: { 
 					vertex: "starVert", 
@@ -542,25 +570,30 @@
 					vertex: "simpleVert",
 					fragment: "simpleFrag",
 					attributes: [ "vertexPosition" ],
-					uniforms: [ "Model", "View", "Projection" ]
+					uniforms: [ "Model", "View", "Projection", "Color" ]
 				}
 			}, shaderSources);
 
 		var uniforms = {
 			View: { data: mat4.create(), type: gl.uniformMatrix4fv },
-			Projection: { data: mat4.create(), type: gl.uniformMatrix4fv }
+			Projection: { data: mat4.create(), type: gl.uniformMatrix4fv },
+			Color: { data: vec4.create(0.2, 0.2, 1.0, 1.0), type: gl.uniform4fv }
 		};
 
 		var shapes = {
 			planet: buildSphere(gl, programs.planet, 48, 96),
 			star: buildSphere(gl, programs.star, 48, 96),
 			orbit: buildCircle(gl, programs.simple, 1024),
-			skybox: buildSphere(gl, programs.star, 48, 96)
+			halo: buildCircle(gl, programs.simple, 1024),
+			skybox: buildSphere(gl, programs.skybox, 48, 96)
 		};
 		shapes.skybox.textures = { textureSampler: textures.stars };
 		shapes.skybox.uniforms = {
 			Model: { data: mat4.create(), type: gl.uniformMatrix4fv },
 			Projection: { data: mat4.perspective(mat4.create(), π/2, 1024/768, 0.2, 2), type: gl.uniformMatrix4fv }
+		};
+		shapes.halo.uniforms.Color = {
+			data: vec4.create(1.0,0.2,0.2,0.6), type: gl.uniform4fv
 		};
 
 		var lights = {
@@ -594,6 +627,7 @@
 					orbitalDistance: 1082e5,
 					rotationPeriod: -243,
 					orbitalPeriod: 0.62*365,
+					tilt: 2.64,
 					texture: textures.venus,
 					surface: "textures/venus.jpg"
 				},
@@ -603,6 +637,7 @@
 					orbitalPeriod: 1*365,
 					rotationPeriod: 1,
 					texture: textures.earth,
+					tile: 23.44,
 					surface: "textures/earth.jpg",
 					satellites: [
 						{	name: "Moon",
@@ -610,6 +645,7 @@
 							orbitalDistance: 38e4,
 							orbitalPeriod: 27.3,
 							rotationPeriod: 0,
+							tilt: 6.687,
 							texture: textures.moon,
 							surface: "textures/moon.jpg"
 						}
@@ -620,6 +656,7 @@
 					radius: 6787/2,
 					rotationPeriod: 1.03,
 					orbitalPeriod: 1.88*365,
+					tilt: 25.19,
 					texture: textures.mars,
 					surface: "textures/mars.jpg",
 					satellites: [
@@ -638,6 +675,7 @@
 					orbitalPeriod: 11.86*365,
 					orbitalDistance: 7783e5,
 					rotationPeriod: 0.41,
+					tilt: 3.13,
 					texture: textures.jupiter,
 					surface: "textures/jupiter.jpg"
 					//satellites: [ ... ]
@@ -648,6 +686,7 @@
 					orbitalPeriod: 29.46*365,
 					rotationPeriod: 0.44,
 					texture: textures.saturn,
+					tilt: 26.73,
 					surface: "textures/saturn.jpg"
 					//satellites: [ ... ]
 				},
@@ -656,6 +695,7 @@
 					orbitalDistance: 2871e6,
 					orbitalPeriod: 84.01*365,
 					rotationPeriod: -0.72,
+					tilt: 97.77,
 					texture: textures.uranus,
 					surface: "textures/uranus.jpg"
 					//satellites: [ ... ]
@@ -665,6 +705,7 @@
 					orbitalDistance: 44971e5,
 					orbitalPeriod: 164.8*365,
 					rotationPeriod: 0.72,
+					tilt: 28.32,
 					texture: textures.neptune,
 					surface: "textures/neptune.jpg"
 					//satellites: [ ... ]
@@ -696,11 +737,11 @@
 		window.onhashchange = function () {
 			var hash = window.location.hash.slice(1);
 			selected = findPlanet(sun, hash) || findPlanet(sun, 'Sun/Earth');
-			document.getElementById("console").innerHTML = getHTML(sun, selected || sun);
+			document.getElementById("info").innerHTML = getHTML(sun, selected || sun);
 		}
 		window.onhashchange();
 
-		document.getElementById("console").innerHTML = getHTML(sun, selected || sun);
+		document.getElementById("info").innerHTML = getHTML(sun, selected || sun);
 
 		var draw = function (prev, now, fps) {
 
@@ -708,32 +749,35 @@
 			const aspectRatio = canvasBoundingRect.width / canvasBoundingRect.height
 
 			var updatePlanets = function (planet, parentTransform) {
-				parentTransform = parentTransform || { position: mat4.create() };
+				parentTransform = parentTransform || { position: mat4.create(), orbitRotation: mat4.create() };
 
 				planet.transform = {
 					position: mat4.clone(parentTransform.position),
 					surface: mat4.create(),
-					orbit: mat4.create()
+					orbit: mat4.create(),
+					orbitRotation: mat4.clone(parentTransform.orbitRotation),
+					halo: mat4.create(),
+					surfaceRotation: mat4.create()
 				}
 
 				if (planet.orbitalPeriod) {
-					mat4.rotateY(planet.transform.position, planet.transform.position, now*scaleSpeed(planet.orbitalPeriod));
+					mat4.rotateY(planet.transform.orbitRotation, planet.transform.orbitRotation, now*scaleSpeed(planet.orbitalPeriod));
 				}
 				if (planet.orbitalDistance) {
 					var orbitalDistance = scaleDistance(planet.orbitalDistance);
-					mat4.translate(planet.transform.position, planet.transform.position, [ 0, 0, orbitalDistance ]);
+					mat4.multiply(planet.transform.position, planet.transform.position, mat4.translate(mat4.create(), planet.transform.orbitRotation, [ 0, 0, orbitalDistance ]));
 
 					mat4.scale(planet.transform.orbit, planet.transform.orbit, [ orbitalDistance, orbitalDistance, orbitalDistance ]);
 					mat4.multiply(planet.transform.orbit, parentTransform.position, planet.transform.orbit);
 				}
 				if (planet.rotationPeriod) {
-					mat4.rotateY(planet.transform.surface, planet.transform.surface, now*scaleSpeed(planet.rotationPeriod));
+					mat4.rotateY(planet.transform.surfaceRotation, planet.transform.surfaceRotation, now*scaleSpeed(planet.rotationPeriod));
 				}
-
 				if (planet.radius) {
 					var radius = scaleDistance(planet.radius);
-					mat4.scale(planet.transform.surface, planet.transform.surface, [ radius, radius, radius ]);
+					mat4.scale(planet.transform.surface, planet.transform.surfaceRotation, [ radius, radius, radius ]);
 					mat4.multiply(planet.transform.surface, planet.transform.position, planet.transform.surface);
+					mat4.scale(planet.transform.halo, planet.transform.position, [ radius, radius, radius ]);
 				}
 
 				if (planet.satellites)
@@ -761,9 +805,13 @@
 					const offset = mat4.fromTranslation(mat4.create(), [0,0,-scaleDistance((r*10)^(1/2)) * cameraZoom])
 					
 					const eyePos = mat4.create()
+					if (viewDirection === "out") mat4.rotateY(eyePos, eyePos, π)
 					mat4.mul(eyePos, eyePos, offset)
 					mat4.mul(eyePos, eyePos, rotation)
+					if (rotationLock === "surface") mat4.mul(eyePos, eyePos, mat4.invert(mat4.create(), planet.transform.surfaceRotation))
+					if (rotationLock === "surface" || rotationLock === "orbit") mat4.mul(eyePos, eyePos, mat4.invert(mat4.create(), mat4.fromQuat(mat4.create(), mat4.getRotation(quat.create(), planet.transform.position))))
 					mat4.mul(eyePos, eyePos, translation)
+					
 					
 					/*mat4.lookAt(
 							uniforms.View.data, // out
@@ -805,7 +853,8 @@
 
 			var drawPlanet = function (planet) {
 				//draw the planets orbit
-				shapes.orbit.uniforms.Model.data = planet.transform.orbit;
+				shapes.orbit.uniforms.Model = { data: planet.transform.orbit, type: gl.uniformMatrix4fv };
+				shapes.orbit.uniforms.Color = { data: vec4.create(1.0,0.0,0.0,1.0), type: gl.uniform4fv }
 				drawShape(gl, shapes.orbit, uniforms);
 
 				//draw the planets surface
@@ -813,6 +862,13 @@
 				shape.textures = { textureSampler: planet.texture };
 				shape.uniforms.Model.data = planet.transform.surface;
 				drawShape(gl, shape, uniforms);
+
+				//draw the planets halo
+				/*const V = mat4.clone(uniforms.View.data)
+				const R = mat4.getRotation(quat.create(), V)
+				const rotation = mat4.fromQuat(mat4.create(), quat.invert(mat4.create(), cameraRotation))
+				shapes.halo.uniforms.Model = { data: mat4.multiply(mat4.create(), planet.transform.halo, mat4.create()), type: gl.uniformMatrix4fv }
+				drawShape(gl, shapes.halo, uniforms);*/
 
 				//draw its satellites
 				if (planet.satellites)
@@ -824,8 +880,8 @@
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 			//draw skybox
-			drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), cameraRotation), type: gl.uniformMatrix4fv } });  
-			//drawShape(gl, shapes.skybox, { View: uniforms.View.data });  
+			drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), mat4.getRotation(quat.create(), uniforms.View.data)), type: gl.uniformMatrix4fv } });  
+			//drawShape(gl, shapes.skybox, { View: { data: mat4.fromQuat(mat4.create(), cameraRotation), type: gl.uniformMatrix4fv } });  
 
 			gl.clear(gl.DEPTH_BUFFER_BIT);
 			updatePlanets(sun);
@@ -849,12 +905,16 @@
 
 		var animation = animate(1e3/120, 60, draw, drawFPS).start();
 
+		document.getElementById("speed").addEventListener("change", evt => { animation.setSpeed(evt.target.value); })
+
 	};
 	loadFiles({
 			planetVert: "shaders/planet.vert",
 			planetFrag: "shaders/planet.frag",
 			starVert: "shaders/star.vert",
 			starFrag: "shaders/star.frag",
+			skyboxVert: "shaders/skybox.vert",
+			skyboxFrag: "shaders/skybox.frag",
 			simpleVert: "shaders/simple.vert",
 			simpleFrag: "shaders/simple.frag"
 		}, function (shaderSources) {

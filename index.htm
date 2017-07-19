@@ -9,9 +9,31 @@
 <div id=statistics>FPS: <span id=fps>0</span></div>
 
 <div id=console></div>
+<div id=info></div>
+<div id=controls>
+	<div class=control>
+		<label for=speed>Speed</label>
+		<input type=range id=speed min="-10" value="1" max="10" step="1">
+	</div>
+	<div class=control>
+		<label for=rotationLock>Camera Rotation</label>
+		<select id=rotationLock>
+			<option value=galaxy>Galaxy</option>
+			<option value=orbit>Orbit</option>
+			<option value=surface>Surface</option>
+		</select>
+	</div>
+	<!--<div class=control>
+		<label for=viewDirection>Camera Direction</label>
+		<select id=viewDirection>
+			<option value=in>Ground</option>
+			<option value=out>Sky</option>
+		</select>
+	</div>-->
+</div>
 
-<script src="https://cdn.ravenjs.com/3.8.0/raven.min.js"></script>
-<script>Raven.config('https://e48dab6b14384a0b8106de77fa1f490c@sentry.io/113821').install()</script>
+<!--<script src="https://cdn.ravenjs.com/3.8.0/raven.min.js"></script>
+<script>Raven.config('https://e48dab6b14384a0b8106de77fa1f490c@sentry.io/113821').install()</script>-->
 
 <script src=gl-matrix.js></script>
 <script src=script.js id=script></script>

@@ -1,0 +1,36 @@
+//IN
+uniform mat4 Model;
+uniform mat4 View;
+uniform mat4 Projection;
+
+attribute vec3 vertexPosition;
+attribute vec3 vertexNormal;
+attribute vec2 vertexTexture;
+
+uniform vec3 lightPosition[8];
+
+
+//OUT
+varying vec4 position;
+varying vec4 normal;
+varying vec2 texture;
+
+varying vec3 eyePosition;
+varying vec3 eyeNormal;
+varying vec3 lightEyePosition[8];
+
+void main() {
+	position = vec4(vertexPosition, 1.0);
+	normal = vec4(normalize(vertexNormal), 0.0);
+	texture = vertexTexture;
+
+	mat4 PV = Projection * View;
+	mat4 PVM = Projection * View * Model;
+
+	eyePosition = vec3(PVM * position);
+	eyeNormal = vec3(normalize(PVM * normal));
+	for (int i = 0; i < 8; i++)
+		lightEyePosition[i] = vec3(PV * vec4(lightPosition[i], 1)) - eyePosition;
+
+	gl_Position = PVM * position;
+}
