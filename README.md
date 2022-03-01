@@ -10,7 +10,7 @@ This demo requires WebGL. Support for WebGL is present in Firefox 4+, Google Chr
 I've heard some schools are giving assignments that are quite similar to this project. It was written as a personal project (without connection to any school), then released as open source software.
 
 ### Teachers
-Unfortunately, I can't hide it from your students. Removing things from the commons for the benefit of educational institutions is counterproductive to say the least.
+Unfortunately, I can't hide it from your students. Removing something from the commons for the benefit of an educational institution would be counterproductive to say the least.
 
 ### Students
 You might be able to use this as reference, but make sure you clearly cite your sources. Remember that your teachers aren't stupid. This code is quite distinctive - even in the abstract. And the person marking your work has probably seen it before.
