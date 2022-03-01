@@ -8,7 +8,7 @@ It's written in plain old Javascript with a single dependency - the glMatrix mat
 ## Demo
 This demo requires WebGL. Support for WebGL is present in Firefox 4+, Google Chrome 9+, Opera 12+, Safari 5.1+ and Internet Explorer 11+; however, your device must also have hardware that supports these features.
 
-[![screenshot.jpg](https://bitbucket.org/repo/dMaXz9/images/1232650684-screenshot.jpg)](http://bailus.github.io/WebGL-Solar-System/)
+[![screenshot.jpg](http://bailus.github.io/WebGL-Solar-System/screenshot.jpg)](http://bailus.github.io/WebGL-Solar-System/)
 
 [Click to launch](http://bailus.github.io/WebGL-Solar-System/)
 
